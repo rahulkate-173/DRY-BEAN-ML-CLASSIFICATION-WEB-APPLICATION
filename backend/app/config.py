@@ -17,7 +17,8 @@ class Settings(BaseSettings):
     )
 
     # CORS
-    frontend_origins: str = "http://localhost:5173,http://localhost:3000"
+    # CORS
+    frontend_origins: str = "http://localhost:5173,http://localhost:3000,https://dry-bean-ml-classification-web-appl.vercel.app"
 
     # Paths (relative to backend/ working directory)
     dataset_path: str = "../dataset/Dry_Bean_Dataset.xlsx"
