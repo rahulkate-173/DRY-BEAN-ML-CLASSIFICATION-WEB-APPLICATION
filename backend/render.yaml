@@ -10,6 +10,7 @@ services:
         value: http://localhost:5173
         # Update this to your Vercel URL after deployment:
         # value: https://your-app.vercel.app
+        value: http://localhost:5173,http://localhost:3000,https://dry-bean-ml-classification-web-appl.vercel.app
       - key: DATASET_PATH
         value: ../dataset/Dry_Bean_Dataset.xlsx
       - key: ARTIFACTS_DIR
