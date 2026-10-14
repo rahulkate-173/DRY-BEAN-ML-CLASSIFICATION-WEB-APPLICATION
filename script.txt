@@ -1,0 +1,368 @@
+================================================================================
+  BeanVision AI — Setup, Training, and Deployment Script
+  Dry Bean Classification & Agricultural Intelligence System
+================================================================================
+
+PREREQUISITES
+─────────────
+• Python 3.11 (https://python.org/downloads/)
+• Node.js 18+ and npm (https://nodejs.org/)
+• Git
+• The dataset file: dataset/Dry_Bean_Dataset.xlsx  ← already in repo
+
+--------------------------------------------------------------------------------
+SECTION 1: BACKEND SETUP (Windows PowerShell)
+--------------------------------------------------------------------------------
+
+# Navigate to the backend directory
+cd backend
+
+# Create a Python virtual environment
+python -m venv .venv
+
+# Activate the virtual environment (Windows PowerShell)
+.\.venv\Scripts\Activate.ps1
+
+# If you get a script-execution error, run this first:
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope CurrentUser
+
+# Install all backend dependencies
+pip install -r requirements.txt
+
+# Copy environment file and edit if needed
+copy .env.example .env
+# Edit .env to set FRONTEND_ORIGINS to your Vercel URL in production
+
+--------------------------------------------------------------------------------
+SECTION 2: DATASET LOCATION
+--------------------------------------------------------------------------------
+
+The dataset is already in: dataset\Dry_Bean_Dataset.xlsx
+Source: https://archive.ics.uci.edu/dataset/602/dry+bean
+
+If the file is missing, download manually:
+1. Visit https://archive.ics.uci.edu/dataset/602/dry+bean
+2. Click Download
+3. Extract Dry_Bean_Dataset.xlsx to the dataset\ directory
+
+The DATASET_PATH in backend\.env defaults to: ../dataset/Dry_Bean_Dataset.xlsx
+(relative to the backend\ working directory)
+
+--------------------------------------------------------------------------------
+SECTION 3: TRAIN THE MODEL (Windows PowerShell)
+--------------------------------------------------------------------------------
+
+# Make sure you are in the backend\ directory with the venv active:
+cd backend
+.\.venv\Scripts\Activate.ps1
+
+# Run the full training pipeline:
+# - Loads dataset from dataset\Dry_Bean_Dataset.xlsx
+# - Validates data, removes duplicates
+# - Splits into 80% train / 20% test (stratified, seed=42)
+# - Cross-validates 6 models using macro-F1
+# - Selects best model, evaluates on held-out test set
+# - Saves all artifacts to backend\artifacts\
+python -m ml.train
+
+--------------------------------------------------------------------------------
+SECTION 4: VERIFY ARTIFACTS
+--------------------------------------------------------------------------------
+
+# Check that all required artifact files were created:
+Get-ChildItem artifacts\
+
+# Expected files:
+# artifacts\model.joblib           — fitted sklearn Pipeline
+# artifacts\model_metadata.json    — model name, version, classes, metrics
+# artifacts\evaluation_metrics.json — CV comparison + test-set results
+# artifacts\dataset_statistics.json — per-feature global statistics
+# artifacts\feature_importance.json — feature importance (model-dependent)
+# artifacts\confusion_matrix.json  — confusion matrix array + class labels
+# artifacts\class_ranges.json      — per-class per-feature statistics
+
+# Quick check with PowerShell:
+@("model.joblib","model_metadata.json","evaluation_metrics.json",
+  "dataset_statistics.json","feature_importance.json",
+  "confusion_matrix.json","class_ranges.json") | ForEach-Object {
+    if (Test-Path "artifacts\$_") { Write-Host "OK: $_" }
+    else { Write-Host "MISSING: $_" -ForegroundColor Red }
+}
+
+--------------------------------------------------------------------------------
+SECTION 5: RUN THE BACKEND LOCALLY
+--------------------------------------------------------------------------------
+
+# From the backend\ directory (venv active):
+uvicorn app.main:app --reload --port 8000
+
+# Or without auto-reload (production-like):
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# Verify the server is running:
+Invoke-WebRequest -Uri http://localhost:8000/health | Select-Object -ExpandProperty Content
+
+# API docs available at:
+# http://localhost:8000/docs  (Swagger UI)
+# http://localhost:8000/redoc (ReDoc)
+
+--------------------------------------------------------------------------------
+SECTION 6: TEST THE BACKEND ENDPOINTS
+--------------------------------------------------------------------------------
+
+# Health check:
+Invoke-RestMethod http://localhost:8000/health
+
+# Model info:
+Invoke-RestMethod http://localhost:8000/api/model-info
+
+# Statistics overview:
+Invoke-RestMethod http://localhost:8000/api/statistics/overview
+
+# Feature statistics:
+Invoke-RestMethod http://localhost:8000/api/statistics/features
+
+# Class ranges:
+Invoke-RestMethod http://localhost:8000/api/statistics/class-ranges
+
+# Single class:
+Invoke-RestMethod http://localhost:8000/api/statistics/class-ranges/SEKER
+
+# Evaluation metrics:
+Invoke-RestMethod http://localhost:8000/api/evaluation
+
+# Confusion matrix:
+Invoke-RestMethod http://localhost:8000/api/evaluation/confusion-matrix
+
+# Feature importance:
+Invoke-RestMethod http://localhost:8000/api/evaluation/feature-importance
+
+# Get a sample dataset row (for Fill Example button):
+Invoke-RestMethod http://localhost:8000/api/dataset/sample
+
+# Make a prediction (Seker example):
+$body = @{
+    Area=28395; Perimeter=610.291; MajorAxisLength=208.178117
+    MinorAxisLength=173.888747; AspectRation=1.197191; Eccentricity=0.549812
+    ConvexArea=28715; EquivDiameter=190.141097; Extent=0.763923
+    Solidity=0.988856; roundness=0.958027; Compactness=0.913358
+    ShapeFactor1=0.007332; ShapeFactor2=0.003147; ShapeFactor3=0.834222
+    ShapeFactor4=0.998724
+} | ConvertTo-Json
+
+Invoke-RestMethod -Method POST -Uri http://localhost:8000/api/predict `
+    -ContentType "application/json" -Body $body
+
+# Download class ranges CSV:
+Invoke-WebRequest -Uri http://localhost:8000/api/statistics/export/class-ranges.csv `
+    -OutFile class_ranges.csv
+
+--------------------------------------------------------------------------------
+SECTION 7: RUN BACKEND TESTS
+--------------------------------------------------------------------------------
+
+# From backend\ (venv active):
+pip install pytest httpx
+pytest tests/ -v
+
+# Run a specific test:
+pytest tests/test_api.py::test_valid_prediction -v
+
+# NOTE: Tests use mocked model state — no real artifacts needed for unit tests.
+
+--------------------------------------------------------------------------------
+SECTION 8: RUN THE FRONTEND LOCALLY
+--------------------------------------------------------------------------------
+
+# From the project root or frontend\ directory:
+cd frontend
+
+# Install Node dependencies (first time only):
+npm install
+
+# Create the local environment file:
+copy .env.example .env
+# This sets VITE_API_BASE_URL=http://localhost:8000
+
+# Start the Vite development server:
+npm run dev
+
+# Frontend runs at: http://localhost:5173
+# Make sure the backend is also running on port 8000.
+
+# Build for production (optional, Vercel does this automatically):
+npm run build
+
+--------------------------------------------------------------------------------
+SECTION 9: LINUX / macOS EQUIVALENTS
+--------------------------------------------------------------------------------
+
+cd backend
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+cp .env.example .env
+
+python -m ml.train
+uvicorn app.main:app --reload --port 8000
+
+# Frontend:
+cd ../frontend
+cp .env.example .env
+npm install
+npm run dev
+
+--------------------------------------------------------------------------------
+SECTION 10: CONFIGURE CORS (FRONTEND ORIGINS)
+--------------------------------------------------------------------------------
+
+Edit backend\.env:
+
+  FRONTEND_ORIGINS=http://localhost:5173,https://your-app.vercel.app
+
+Multiple origins are comma-separated.
+After updating, restart the backend server.
+
+For Render deployment, set this as an environment variable in the Render dashboard.
+
+--------------------------------------------------------------------------------
+SECTION 11: RENDER BACKEND DEPLOYMENT
+--------------------------------------------------------------------------------
+
+1. Push the repository to GitHub (GitHub is required for Render integration).
+
+2. Go to https://render.com → New → Web Service
+
+3. Connect your GitHub repository.
+
+4. Set the configuration:
+   Root Directory:    backend
+   Runtime:           Python 3
+   Build Command:     pip install -r requirements.txt
+   Start Command:     uvicorn app.main:app --host 0.0.0.0 --port $PORT
+   Health Check Path: /health
+
+5. Add Environment Variables in the Render dashboard:
+   FRONTEND_ORIGINS  = https://your-app.vercel.app
+   DATASET_PATH      = ../dataset/Dry_Bean_Dataset.xlsx
+   ARTIFACTS_DIR     = artifacts
+   MODEL_VERSION     = 1.0.0
+
+6. IMPORTANT — Model Artifacts on Render:
+   Render does NOT have a persistent filesystem between deploys.
+   You must commit the trained artifacts to the repository:
+
+   # After training locally:
+   git add backend/artifacts/model.joblib
+   git add backend/artifacts/*.json
+   # Remove these lines from .gitignore first if they are excluded:
+   git commit -m "Add trained model artifacts v1.0.0"
+   git push
+
+   Then redeploy on Render. The artifacts will be available from the repo.
+
+7. After deploy, note your Render service URL, e.g.:
+   https://beanvision-ai-backend.onrender.com
+
+   Update backend/.env (or Render env var):
+   FRONTEND_ORIGINS=https://your-app.vercel.app
+
+--------------------------------------------------------------------------------
+SECTION 12: VERCEL FRONTEND DEPLOYMENT
+--------------------------------------------------------------------------------
+
+1. Push the repository to GitHub.
+
+2. Go to https://vercel.com → New Project → Import your GitHub repo.
+
+3. Set the configuration:
+   Framework Preset:  Vite
+   Root Directory:    frontend
+   Build Command:     npm run build
+   Output Directory:  dist
+
+4. Add the Environment Variable:
+   VITE_API_BASE_URL = https://beanvision-ai-backend.onrender.com
+   (Use your actual Render URL from Step 11)
+
+5. Click Deploy.
+
+6. After deployment, Vercel gives you a URL like:
+   https://beanvision-ai.vercel.app
+
+7. Go back to Render and update FRONTEND_ORIGINS to include this URL.
+   Then redeploy the backend (or it will pick up on next deploy).
+
+--------------------------------------------------------------------------------
+SECTION 13: TROUBLESHOOTING
+--------------------------------------------------------------------------------
+
+PROBLEM: Prediction returns 503 "Model not loaded"
+SOLUTION:
+  - Run python -m ml.train in backend\ with the venv active
+  - Verify artifacts\ contains model.joblib
+  - Restart the uvicorn server
+
+PROBLEM: Dataset not found error during training
+SOLUTION:
+  - Confirm dataset\Dry_Bean_Dataset.xlsx exists
+  - Check DATASET_PATH in backend\.env (default: ../dataset/Dry_Bean_Dataset.xlsx)
+  - Run from the backend\ directory: python -m ml.train
+
+PROBLEM: Frontend shows "Cannot reach backend"
+SOLUTION:
+  - Check VITE_API_BASE_URL in frontend\.env
+  - Make sure uvicorn is running on port 8000
+  - Check CORS: FRONTEND_ORIGINS must include your frontend origin
+
+PROBLEM: CORS error in browser console
+SOLUTION:
+  - Edit backend\.env: FRONTEND_ORIGINS=http://localhost:5173,https://your-app.vercel.app
+  - Restart the backend
+
+PROBLEM: npm install fails
+SOLUTION:
+  - Ensure Node.js 18+ is installed: node --version
+  - Delete frontend\node_modules\ and run npm install again
+
+PROBLEM: pip install fails with version conflicts
+SOLUTION:
+  - Use Python 3.11 exactly
+  - Create a fresh venv: python -m venv .venv --clear
+  - pip install --upgrade pip
+  - pip install -r requirements.txt
+
+PROBLEM: Render deployment — artifacts missing
+SOLUTION:
+  - Commit artifacts to the repo (see Section 11, Step 6)
+  - Or set up a build step to download artifacts from cloud storage
+
+PROBLEM: Class not found (404) from /api/statistics/class-ranges/DERMASON
+SOLUTION:
+  - Class names are uppercase: DERMASON not Dermasan
+  - Valid: BARBUNYA, BOMBAY, CALI, DERMASON, HOROZ, SEKER, SIRA
+
+--------------------------------------------------------------------------------
+SECTION 14: RETRAIN AND REDEPLOY
+--------------------------------------------------------------------------------
+
+# 1. Activate venv and retrain:
+cd backend
+.\.venv\Scripts\Activate.ps1
+python -m ml.train
+
+# 2. Verify new artifacts:
+Get-ChildItem artifacts\
+
+# 3. Commit artifacts:
+cd ..
+git add backend/artifacts/
+git commit -m "Retrain model - $(Get-Date -Format 'yyyy-MM-dd')"
+git push
+
+# 4. Trigger redeploy on Render (auto-deploys on push if configured)
+# 5. Clear Vercel cache if needed (Settings → Deployments → Redeploy)
+
+================================================================================
+END OF SCRIPT
+================================================================================
