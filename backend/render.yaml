@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: beanvision-ai-backend
+    env: python
+    rootDir: backend
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: FRONTEND_ORIGINS
+        value: http://localhost:5173
+        # Update this to your Vercel URL after deployment:
+        # value: https://your-app.vercel.app
+      - key: DATASET_PATH
+        value: ../dataset/Dry_Bean_Dataset.xlsx
+      - key: ARTIFACTS_DIR
+        value: artifacts
+      - key: MODEL_VERSION
+        value: 1.0.0
+    healthCheckPath: /health
+    autoDeploy: false
