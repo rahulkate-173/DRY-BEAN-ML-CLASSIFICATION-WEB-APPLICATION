@@ -1,0 +1,47 @@
+{
+  "model_name": "SVM_Calibrated",
+  "preprocessor": "PowerTransformer()",
+  "model_version": "1.0.0",
+  "training_date": "2026-10-14T09:40:27.399153+00:00",
+  "dataset_source": "UCI ML Repository \u2014 Dry Bean Dataset (Koklu & Ozkan, 2020)",
+  "dataset_path": "..\\dataset\\Dry_Bean_Dataset.xlsx",
+  "random_seed": 42,
+  "test_size": 0.2,
+  "cv_folds": 5,
+  "feature_names": [
+    "Area",
+    "Perimeter",
+    "MajorAxisLength",
+    "MinorAxisLength",
+    "AspectRation",
+    "Eccentricity",
+    "ConvexArea",
+    "EquivDiameter",
+    "Extent",
+    "Solidity",
+    "roundness",
+    "Compactness",
+    "ShapeFactor1",
+    "ShapeFactor2",
+    "ShapeFactor3",
+    "ShapeFactor4"
+  ],
+  "class_labels": [
+    "BARBUNYA",
+    "BOMBAY",
+    "CALI",
+    "DERMASON",
+    "HOROZ",
+    "SEKER",
+    "SIRA"
+  ],
+  "training_samples": 10834,
+  "test_samples": 2709,
+  "test_metrics": {
+    "accuracy": 0.9217423403469915,
+    "f1_macro": 0.9338832750583386,
+    "f1_weighted": 0.9217308552123948,
+    "precision_macro": 0.9352199352772784,
+    "recall_macro": 0.9327702137695162
+  }
+}
